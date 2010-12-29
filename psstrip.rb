@@ -267,7 +267,7 @@ module PatentSafe
 
     # Applies substitutions to the content
     def strip_content(file)
-      @subs.each{|pattern, sub| file.gsub!(/#{pattern}/, sub)}
+      @subs.each{|pattern, sub| file.gsub!(/#{pattern}/m, sub)}
       file
     end
 
