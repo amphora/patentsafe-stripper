@@ -274,7 +274,7 @@ module PatentSafe
 
     def copy_to(dest)
       unless File.exists?(dest)
-        LOG.error "Repository can not be stripped since target directory '#{path}' doesn't exist."
+        LOG.error "Repository can not be stripped since target directory '#{dest}' doesn't exist."
         exit 0
       end
 
