@@ -60,7 +60,6 @@ require 'ostruct'
 require 'pathname'
 require 'rdoc/usage'
 require 'rexml/document'
-require 'yaml'
 
 
 # Setup global logger if file is being run as a script (not included)
