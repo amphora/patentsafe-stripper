@@ -194,7 +194,7 @@ module PatentSafe
 
   class Repository
     attr_accessor :path
-    attr_reader :results, :users, :user_map, :workgroups, :workgroup_map
+    attr_reader :totals, :users, :user_map, :workgroups, :workgroup_map
 
     # File patterns used to match against repo file paths
 
@@ -251,6 +251,12 @@ module PatentSafe
       @workgroup_map = Hash.new
       @rules = Hash.new
       @subs = Hash.new
+      @totals = OpenStruct.new
+      @totals.users = 0
+      @totals.workgroups = 0
+      @totals.skipped = 0
+      @totals.stripped = 0
+      @totals.copied = 0
 
       LOG.info "-----------------------------------------------------------------------"
       LOG.info " PatentSafe Stripper "
@@ -291,6 +297,7 @@ module PatentSafe
 
         # store the user
         @users[user.user_id] = user
+        @totals.users += 1
         LOG.info " - loaded #{user.name} [#{user.user_id}]"
       end
 
@@ -317,6 +324,7 @@ module PatentSafe
 
         # store the workgroup
         @workgroups[workgroup.wg_id] = workgroup
+        @totals.workgroups += 1
         LOG.info " - loaded #{workgroup.name} [#{workgroup.wg_id}]"
       end
 
@@ -380,13 +388,16 @@ module PatentSafe
               case rule
               when :strip
                 target.open("w+"){|t| t.puts strip_content(src.read)}
+                @totals.stripped += 1
                 LOG.info " - stripped #{basename}"
 
               when :skip
+                @totals.skipped += 1
                 LOG.info " - skipped #{basename}"
 
               else # :copy
                 FileUtils.cp(src.to_s, target.to_s)
+                @totals.copied += 1
                 LOG.info " - copied #{basename}"
 
               end # case
@@ -400,9 +411,18 @@ module PatentSafe
       end # Find
 
       copy_users_to dest
+      total = @totals.stripped + @totals.skipped + @totals.copied + @totals.users
+      pad = total.to_s.length + 2
 
       LOG.info ""
       LOG.warn " PatentSafe repository copied to: #{File.expand_path(dest.to_s)}"
+      LOG.warn ""
+      LOG.warn "  * Files stripped: #{@totals.stripped.to_s.rjust(pad)}"
+      LOG.warn "  * Files skipped:  #{@totals.skipped.to_s.rjust(pad)}"
+      LOG.warn "  * Files copied:   #{@totals.copied.to_s.rjust(pad)}"
+      LOG.warn "  * Users coped:    #{@totals.users.to_s.rjust(pad)}"
+      LOG.warn ""
+      LOG.warn " Total processed:   #{total.to_s.rjust(pad)}"
       LOG.info ""
       LOG.info " Ended at: #{Time.now}"
       LOG.info "-----------------------------------------------------------------------"
