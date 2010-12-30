@@ -194,7 +194,7 @@ module PatentSafe
 
   class Repository
     attr_accessor :path
-    attr_reader :results, :users
+    attr_reader :results, :users, :user_map
 
     # File patterns used to match against repo file paths
 
@@ -230,19 +230,23 @@ module PatentSafe
       "queues",
       "scanning",
       "scripts",
-      "spool"
+      "spool",
+      "users"
     ]
 
     # SUBSTITUTIONS: substitutions made of document content
     SUBSTITUTIONS = {
       "<summary>.*<\/summary>" => "<summary>~summary stripped by psstrip~</summary>",
       "<text>.*<\/text>" => "<text>~text stripped by psstrip~</text>",
-      "<metadataValues>.*<metadataValues\/>" => "<metadataValues>~metadata stripped by psstrip~</metadataValues>"
+      "<metadataValues>.*<metadataValues\/>" => "<metadataValues>~metadata stripped by psstrip~</metadataValues>",
+      "<aliases>.*<\/aliases>" => "<aliases/>",
+      "<email>.*<\/email>" => "<email>stripped.email@example.com</email>"
     }
 
     def initialize(options={})
       @path = Pathname.new(options[:path].to_s) if options[:path]
       @users = Hash.new
+      @user_map = Hash.new
       @rules = Hash.new
       @subs = Hash.new
 
@@ -270,9 +274,10 @@ module PatentSafe
 
       Dir["#{users_path}/**/*.xml"].each_with_index do |path,i|
         user = User.new(:path => path)
+        @users[user.user_id] = user.name
         # lookup with user id and name to "User#{i}" alias
-        @users[user.user_id] = "user#{i}"
-        @users[user.name] = "User #{i}"
+        @user_map[user.user_id] = "user#{i}"
+        @user_map[user.name] = "User #{i}"
       end
 
       LOG.info "** #{@users.length} users loaded"
@@ -287,7 +292,7 @@ module PatentSafe
     def load_substitutions
       load_users
       @subs.merge!(SUBSTITUTIONS)
-      @subs.merge!(@users)
+      @subs.merge!(@user_map)
     end
 
     # Applies substitutions to the content
@@ -296,19 +301,37 @@ module PatentSafe
       file
     end
 
+    def copy_users_to(dest)
+      # create user directory
+      dest = dest.join('data','users','us','er')
+      dest.mkpath
+
+      Dir["#{users_path}/**/*.xml"].each do |path|
+        src = Pathname.new(path)
+        # lookup anon user name
+        user_name = @user_map[src.basename(".xml").to_s]
+        # create user dir
+        user_dir = dest.join(user_name)
+        user_dir.mkpath
+        # write the stripped user file
+        user_dir.join("#{user_name}.xml").open("w+"){|t| t.puts strip_content(src.read)}
+        LOG.info " - stripped #{src.basename}"
+      end
+    end
+
     def copy_to(dest)
       # ensure we have Pathname objects
-      orig = Pathname.new(@path.to_s)
-      clean = Pathname.new(dest.to_s)
+      root = Pathname.new(@path.to_s)
+      dest = Pathname.new(dest.to_s)
 
       LOG.info ""
-      LOG.info "** copying patentsafe repository from #{orig.to_s}"
+      LOG.info "** copying patentsafe repository from #{root.to_s}"
 
       # Descend through the PatentSafe repository
-      Find.find(orig.to_s) do |path|
+      Find.find(root.to_s) do |path|
         src = Pathname.new(path) # pathname to slice and dice
-        rel = src.relative_path_from(orig) # just the part below the top dir
-        target = Pathname.new(File.join(clean.to_s, rel))
+        rel = src.relative_path_from(root) # just the part below the top dir
+        target = Pathname.new(File.join(dest.to_s, rel))
         basename = src.basename.to_s
 
         if src.directory?
@@ -343,8 +366,10 @@ module PatentSafe
         end # if src.directory?
       end # Find
 
+      copy_users_to dest
+
       LOG.info ""
-      LOG.warn " PatentSafe repository copied to: #{File.expand_path(clean.to_s)}"
+      LOG.warn " PatentSafe repository copied to: #{File.expand_path(dest.to_s)}"
       LOG.info ""
       LOG.info " Ended at: #{Time.now}"
       LOG.info "-----------------------------------------------------------------------"
