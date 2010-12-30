@@ -9,7 +9,8 @@ LOG.level = Logger::ERROR
 
 module TestHelper
   @@script = "ruby psstrip.rb"
-  @@outdir = "tmp"
+  @@outdir = "tmp/patentsafe-stripped"
+  @@dirs  = "test/fixtures/ps-bare-dirs"
   @@psdir = "test/fixtures/ps-repositories/5.1"
 end
 

@@ -1,0 +1,1 @@
+Simple patentsafe(ish) directory structure to test directory copying rules in the stripper

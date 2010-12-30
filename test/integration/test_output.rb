@@ -3,6 +3,7 @@ require File.dirname(__FILE__) + '/../test_helper'
 class TestOutput < Test::Unit::TestCase
 
   def setup
+    Pathname.new(@@outdir).rmtree rescue nil
   end
 
   def test_quiet_has_no_output
@@ -26,4 +27,11 @@ class TestOutput < Test::Unit::TestCase
     assert_match /patentsafe repository copied to/i, out
     assert_match /ended at/i, out
   end
+
+  def test_error_when_directory_exists
+    path = Pathname.new("tmp/already-there").mkpath
+    out = `#{@@script} "#{@@psdir}" "#{path}"`
+    assert_match /exists/i, out
+  end
+
 end

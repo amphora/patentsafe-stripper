@@ -5,14 +5,16 @@
 #   sensitive data.
 #
 # == Examples
-#
+#     ruby psstrip.rb source target
 #     ruby psstrip.rb /path/to/repository /path/to/copy
 #
-#     * A directory named 'patentsafe-stripped' is created under the copy
-#       directory. In the above example the copy would be created at
-#       /path/to/copy/patentsafe-stripped
+#     * source is a patentsafe directory
+#     * target is directory where stripped copy will be made. It is created
+#       if it doesn't exist. If it exists and is non-empty you'll need to
+#       pass the -f (--force) option.
 #
 #   Other examples:
+#     ruby psstrip.rb -f -q /path/to/repository /path/to/copy
 #     ruby psstrip.rb -q /path/to/repository /path/to/copy
 #     ruby psstrip.rb --verbose /path/to/repository /path/to/copy
 #     ruby psstrip.rb -V /path/to/repository /path/to/copy
@@ -23,6 +25,7 @@
 #   For help use: ruby psstrip.rb -h
 #
 # == Options
+#   -f, --force         Force copy to non-empty directory
 #   -h, --help          Displays help message
 #   -v, --version       Display the version, then exit
 #   -q, --quiet         Output as little as possible, overrides verbose
@@ -71,7 +74,7 @@ end
 # Script
 #   sets up arguments, logging level, and options. Also handles help output.
 class Script
-  VERSION = '5.1.0'
+  VERSION = '0.2.0'
 
   # Simple log formatter
   class Formatter < Logger::Formatter
@@ -115,10 +118,11 @@ class Script
 
   def parsed_options?
     opts = OptionParser.new
-    opts.on('-v', '--version')      { output_version ; exit 0 }
-    opts.on('-h', '--help')         { output_help }
-    opts.on('-V', '--verbose')      { @options.verbose = true }
-    opts.on('-q', '--quiet')        { @options.quiet = true }
+    opts.on('-f', '--force')    { @options.force = true }
+    opts.on('-v', '--version')  { output_version ; exit 0 }
+    opts.on('-h', '--help')     { output_help }
+    opts.on('-V', '--verbose')  { @options.verbose = true }
+    opts.on('-q', '--quiet')    { @options.quiet = true }
     opts.parse!(@arguments) rescue return false
     process_options
     true
@@ -136,13 +140,24 @@ class Script
 
   # Setup the arguments
   def process_arguments
-    @patentsafe_dir = ARGV[0] if ARGV[0]
-    @target_dir = ARGV[1] if ARGV[1]
+    @source = Pathname.new(File.expand_path(ARGV[0])) if ARGV[0]
+    @target = Pathname.new(File.expand_path(ARGV[1])) if ARGV[1]
+
+    # check the target
+    if @target.exist?
+      if !@target.children.empty? && !@options.force
+        LOG.error "Target directory '#{@target.to_s}' exists and is not empty. Pass -f (--force) option to proceed anyway."
+        exit 0
+      end
+    else
+      @target.mkpath
+    end
+
   end
 
   def process_command
-    repo = PatentSafe::Repository.new(:path => @patentsafe_dir)
-    repo.copy_to(@target_dir)
+    repo = PatentSafe::Repository.new(:path => @source)
+    repo.copy_to(@target)
   end
 
   def version_text
@@ -181,8 +196,6 @@ module PatentSafe
     attr_accessor :path
     attr_reader :results, :users
 
-    CLEAN_DIR = 'patentsafe-stripped'
-
     # File patterns used to match against repo file paths
 
     # COPY: files that are copied with no changes
@@ -208,6 +221,18 @@ module PatentSafe
       "log\.xml.*" # 4.8 read log
     ]
 
+    # SKIP_DIRS: Directories we skip altogether
+    SKIPDIRS = [
+      "configlets",
+      "index",
+      "printers",
+      "printjobs",
+      "queues",
+      "scanning",
+      "scripts",
+      "spool"
+    ]
+
     # SUBSTITUTIONS: substitutions made of document content
     SUBSTITUTIONS = {
       "<summary>.*<\/summary>" => "<summary>~summary stripped by psstrip~</summary>",
@@ -216,7 +241,7 @@ module PatentSafe
     }
 
     def initialize(options={})
-      @path = options[:path]
+      @path = Pathname.new(options[:path].to_s) if options[:path]
       @users = Hash.new
       @rules = Hash.new
       @subs = Hash.new
@@ -232,11 +257,11 @@ module PatentSafe
     end
 
     def data_path
-      File.expand_path(File.join(@path, 'data'))
+      @path.join('data').expand_path
     end
 
     def users_path
-      File.expand_path(File.join(data_path, 'users'))
+      @path.join('data', 'users').expand_path
     end
 
     # Loads users from the xml in the repo
@@ -272,29 +297,27 @@ module PatentSafe
     end
 
     def copy_to(dest)
-      unless File.exists?(dest)
-        LOG.error "Repository can not be stripped since target directory '#{dest}' doesn't exist."
-        exit 0
-      end
-
-      orig = Pathname.new(@path)
-      clean = Pathname.new(File.join(dest, CLEAN_DIR))
-      clean.rmtree if clean.exist? # reset destination
+      # ensure we have Pathname objects
+      orig = Pathname.new(@path.to_s)
+      clean = Pathname.new(dest.to_s)
 
       LOG.info ""
-      LOG.info "** copying patentsafe repository from #{File.expand_path(orig.to_s)}"
+      LOG.info "** copying patentsafe repository from #{orig.to_s}"
 
       # Descend through the PatentSafe repository
       Find.find(orig.to_s) do |path|
         src = Pathname.new(path) # pathname to slice and dice
         rel = src.relative_path_from(orig) # just the part below the top dir
         target = Pathname.new(File.join(clean.to_s, rel))
+        basename = src.basename.to_s
 
         if src.directory?
-          target.mkpath unless target.exist?
+          if SKIPDIRS.include?(basename) || basename =~ /^\./i
+            Find.prune # skip dot directories and those in SKIPDIRS
+          else
+            target.mkpath unless target.exist?
+          end
         else
-          basename = src.basename.to_s
-
           @rules.each do |pattern, rule|
             if /#{pattern}/i =~ basename
 
@@ -317,7 +340,6 @@ module PatentSafe
 
             end
           end # rules.each
-
         end # if src.directory?
       end # Find
 

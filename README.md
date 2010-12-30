@@ -10,14 +10,20 @@ Usage Instructions
 
 ### Examples ###
 
+    ruby psstrip.rb source target
+
     ruby psstrip.rb /path/to/repository /path/to/copy
 
-A directory named `patentsafe-stripped` is created under the copy
-directory. In the above example the copy would be created at
-`/path/to/copy/patentsafe-stripped`
+* source is a patentsafe directory
+
+* target is directory where stripped copy will be made. It is created
+if it doesn't exist. If it exists and is non-empty you'll need to
+pass the -f (--force) option.
+
 
 Other examples:
 
+    ruby psstrip.rb -f -q /path/to/repository /path/to/copy
     ruby psstrip.rb -q /path/to/repository /path/to/copy
     ruby psstrip.rb --verbose /path/to/repository /path/to/copy
     ruby psstrip.rb -V /path/to/repository /path/to/copy
@@ -30,11 +36,11 @@ Other examples:
 For help use: `ruby pscheck.rb -h`
 
 ### Options: ###
-
-    -h, --help    | Displays help message |
-    -v, --version | Display the version, then exit |
-    -q, --quiet   | Output as little as possible, overrides verbose |
-    -V, --verbose | Verbose output |
+    -f, --force     Force copy to non-empty directory
+    -h, --help      Displays help message
+    -v, --version   Display the version, then exit
+    -q, --quiet     Output as little as possible, overrides verbose
+    -V, --verbose   Verbose output
 
 
 Requirements
