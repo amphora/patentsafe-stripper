@@ -194,15 +194,14 @@ module PatentSafe
 
   class Repository
     attr_accessor :path
-    attr_reader :results, :users, :user_map
+    attr_reader :results, :users, :user_map, :workgroups, :workgroup_map
 
     # File patterns used to match against repo file paths
 
     # COPY: files that are copied with no changes
     COPY = [
       "id-values\.xml.*",
-      "settings\.xml.*",
-      "workgroups\.xml.*"
+      "settings\.xml.*"
     ]
 
     # SKIP: files we not copied
@@ -218,7 +217,8 @@ module PatentSafe
       "signature\-.*\.xml.*",
       "events\.txt.*", # 5.0 merge of events.log + log.xml
       "events\.log.*", # 4.8 event log
-      "log\.xml.*" # 4.8 read log
+      "log\.xml.*", # 4.8 read log
+      "workgroups\.xml.*"
     ]
 
     # SKIP_DIRS: Directories we skip altogether
@@ -247,6 +247,8 @@ module PatentSafe
       @path = Pathname.new(options[:path].to_s) if options[:path]
       @users = Hash.new
       @user_map = Hash.new
+      @workgroups = Hash.new
+      @workgroup_map = Hash.new
       @rules = Hash.new
       @subs = Hash.new
 
@@ -257,42 +259,74 @@ module PatentSafe
       LOG.info ""
 
       load_rules
-      load_substitutions # loads users also
+      load_users
+      load_workgroups
+
+      @subs.merge!(SUBSTITUTIONS)
+      @subs.merge!(@user_map)
+      @subs.merge!(@workgroup_map)
     end
 
     def data_path
       @path.join('data').expand_path
     end
 
-    def users_path
-      @path.join('data', 'users').expand_path
-    end
-
     # Loads users from the xml in the repo
     def load_users
+      users_path = @path.join('data', 'users').expand_path
+      LOG.info ""
       LOG.info "** loading users from #{users_path}"
 
       Dir["#{users_path}/**/*.xml"].each_with_index do |path,i|
-        user = User.new(:path => path)
-        @users[user.user_id] = user.name
-        # lookup with user id and name to "User#{i}" alias
-        @user_map[user.user_id] = "user#{i}"
-        @user_map[user.name] = "User #{i}"
+        user = OpenStruct.new
+        user.xml = REXML::Document.new(File.read(path))
+        user.user_id = user.xml.root.attribute("userId").to_s
+        user.name = user.xml.root.get_text("name").value().to_s
+        user.anon_id = "user#{i}"
+        user.anon_name = "User #{i}"
+
+        # user id and user name index
+        @user_map[user.user_id] = user.anon_id
+        @user_map[user.name] = user.anon_name
+
+        # store the user
+        @users[user.user_id] = user
+        LOG.info " - loaded #{user.name} [#{user.user_id}]"
       end
 
       LOG.info "** #{@users.length} users loaded"
+    end
+
+    # Loads workgroups from the xml in the repo
+    def load_workgroups
+      workgroups_file = @path.join('data', 'config', 'workgroups.xml')
+      return unless workgroups_file.exist?
+      LOG.info ""
+      LOG.info "** loading workgroups from #{workgroups_file}"
+
+      xml = REXML::Document.new(workgroups_file.read)
+      xml.root.elements.each do |wgxml|
+        workgroup = OpenStruct.new
+        workgroup.wg_id = wgxml.attribute("wgId").to_s
+        workgroup.name = wgxml.attribute("name").to_s
+        workgroup.anon_id = workgroup.wg_id
+        workgroup.anon_name = "Group #{workgroup.wg_id}"
+
+        # group name index
+        @workgroup_map[workgroup.name] = workgroup.anon_name
+
+        # store the workgroup
+        @workgroups[workgroup.wg_id] = workgroup
+        LOG.info " - loaded #{workgroup.name} [#{workgroup.wg_id}]"
+      end
+
+      LOG.info "** #{@workgroups.length} workgroups loaded"
     end
 
     def load_rules
       COPY.each{|p| @rules[p] = :copy}
       SKIP.each{|p| @rules[p] = :skip}
       STRIP.each{|p| @rules[p] = :strip}
-    end
-
-    def load_substitutions
-      load_users
-      @subs.merge!(SUBSTITUTIONS)
-      @subs.merge!(@user_map)
     end
 
     # Applies substitutions to the content
@@ -306,16 +340,15 @@ module PatentSafe
       dest = dest.join('data','users','us','er')
       dest.mkpath
 
-      Dir["#{users_path}/**/*.xml"].each do |path|
-        src = Pathname.new(path)
-        # lookup anon user name
-        user_name = @user_map[src.basename(".xml").to_s]
+      # copy users from memory to new users directory
+      @users.each do |id, user|
         # create user dir
-        user_dir = dest.join(user_name)
+        user_dir = dest.join(user.anon_id)
         user_dir.mkpath
+
         # write the stripped user file
-        user_dir.join("#{user_name}.xml").open("w+"){|t| t.puts strip_content(src.read)}
-        LOG.info " - stripped #{src.basename}"
+        user_dir.join("#{user.anon_id}.xml").open("w+"){|t| t.puts strip_content(user.xml.to_s)}
+        LOG.info " - stripped #{user.user_id}.xml"
       end
     end
 
@@ -377,21 +410,6 @@ module PatentSafe
     end # def copy_to
 
   end # class Repository
-
-  class User
-    attr_reader :user_id, :name
-
-    def initialize(options={})
-      @path = options[:path]
-      return unless @path
-
-      @xml = REXML::Document.new(File.read(@path))
-      @user_id = @xml.root.attribute("userId").to_s
-      @name = @xml.root.get_text("name").value().to_s
-      LOG.info " - loaded #{@name} [#{@user_id}]"
-    end
-
-  end # class User
 
 end # module PatentSafe
 
