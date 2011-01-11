@@ -240,7 +240,8 @@ module PatentSafe
       "<text>.*<\/text>" => "<text>~text stripped by psstrip~</text>",
       "<metadataValues>.*<metadataValues\/>" => "<metadataValues>~metadata stripped by psstrip~</metadataValues>",
       "<aliases>.*<\/aliases>" => "<aliases/>",
-      "<email>.*<\/email>" => "<email>stripped.email@example.com</email>"
+      "<email>.*<\/email>" => "<email>stripped.email@example.com</email>",
+      "<password>.*<\/password>" => "<password>fa4afd98097d7f7c7ced012edb56d2c6c6987e31f2f12caa3a422e8b</password>"
     }
 
     def initialize(options={})
@@ -291,9 +292,11 @@ module PatentSafe
         user.anon_id = "user#{i}"
         user.anon_name = "User #{i}"
 
-        # user id and user name index
-        @user_map[user.user_id] = user.anon_id
-        @user_map[user.name] = user.anon_name
+        unless user.user_id == "installer"
+          # user id and user name index
+          @user_map[user.user_id] = user.anon_id
+          @user_map[user.name] = user.anon_name
+        end
 
         # store the user
         @users[user.user_id] = user
@@ -320,7 +323,7 @@ module PatentSafe
         workgroup.anon_name = "Group #{workgroup.wg_id}"
 
         # group name index
-        @workgroup_map[workgroup.name] = workgroup.anon_name
+        @workgroup_map[workgroup.name] = workgroup.anon_name unless workgroup.name == "Admin"
 
         # store the workgroup
         @workgroups[workgroup.wg_id] = workgroup
@@ -345,19 +348,28 @@ module PatentSafe
 
     def copy_users_to(dest)
       # create user directory
-      dest = dest.join('data','users','us','er')
-      dest.mkpath
+      users_dir = dest.join('data','users','us','er')
+      users_dir.mkpath
 
       # copy users from memory to new users directory
       @users.each do |id, user|
-        # create user dir
-        user_dir = dest.join(user.anon_id)
-        user_dir.mkpath
+        if id == "installer"
+          # now copy the installer
+          inst_dir = dest.join('data', 'users', 'in', 'st', 'installer')
+          inst_dir.mkpath
+          installer = @users["installer"]
+          inst_dir.join("installer.xml").open("w+"){|t| t.puts strip_content(installer.xml.to_s)}
+        else
+          # create user dir
+          user_dir = users_dir.join(user.anon_id)
+          user_dir.mkpath
 
-        # write the stripped user file
-        user_dir.join("#{user.anon_id}.xml").open("w+"){|t| t.puts strip_content(user.xml.to_s)}
-        LOG.info " - stripped #{user.user_id}.xml"
+          # write the stripped user file
+          user_dir.join("#{user.anon_id}.xml").open("w+"){|t| t.puts strip_content(user.xml.to_s)}
+          LOG.info " - stripped #{user.user_id}.xml"
+        end
       end
+
     end
 
     def copy_to(dest)

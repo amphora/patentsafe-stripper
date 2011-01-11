@@ -15,7 +15,7 @@ class TestStripEvents < Test::Unit::TestCase
   end
 
   def test_installer_user_id_is_replaced
-    assert_no_match /installer/i, @stripped
+    assert_match /installer/i, @stripped
     assert_match /#{@repo.user_map['installer']}/i, @stripped
   end
 
