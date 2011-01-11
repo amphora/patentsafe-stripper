@@ -74,7 +74,7 @@ end
 # Script
 #   sets up arguments, logging level, and options. Also handles help output.
 class Script
-  VERSION = '0.2.0'
+  VERSION = '0.2.1'
 
   # Simple log formatter
   class Formatter < Logger::Formatter
