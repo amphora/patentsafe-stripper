@@ -200,28 +200,40 @@ module PatentSafe
 
     # COPY: files that are copied with no changes
     COPY = [
-      "id-values\.xml.*",
-      "settings\.xml.*"
+      "id-values\.xml$",
+      "settings\.xml$"
     ]
 
     # SKIP: files we not copied
     SKIP = [
+      ".*\.(png|ps|pdf)$", # images + pdf
       "database\.xml",
-      "content\.txt",
-      ".*\.(png|ps|pdf)$" # images + pdf
+      # any of our main files with additional ext data (migrated/update/etc)
+      "docinfo\.xml.+",
+      "signature\-\d\d\d\.xml.+",
+      "events\.txt.+",
+      "log\.xml.+",
+      "workgroups\.xml.+",
+      "events\.log.+",
+      "settings\.xml.+"
+    ]
+
+    # REPLACE: files that have their entire contents replaced before copy
+    REPLACE = [
+      "content\.txt"
     ]
 
     # STRIP: files that are cleaned before copy
     STRIP = [
-      "docinfo\.xml.*",
-      "signature\-.*\.xml.*",
-      "events\.txt.*", # 5.0 merge of events.log + log.xml
-      "events\.log.*", # 4.8 event log
-      "log\.xml.*", # 4.8 read log
-      "workgroups\.xml.*"
+      "docinfo\.xml$",
+      "signature\-\d\d\d\.xml$",
+      "events\.txt$", # 5.0 merge of events.log + log.xml
+      "log\.xml$", # 4.8 read log
+      "workgroups\.xml$",
+      "events\.log$" # 4.8 event log
     ]
 
-    # SKIP_DIRS: Directories we skip altogether
+    # SKIP_DIRS: directories we skip altogether
     SKIPDIRS = [
       "configlets",
       "index",
@@ -250,13 +262,14 @@ module PatentSafe
       @user_map = Hash.new
       @workgroups = Hash.new
       @workgroup_map = Hash.new
-      @rules = Hash.new
+      @rules = Array.new
       @subs = Hash.new
       @totals = OpenStruct.new
       @totals.users = 0
       @totals.workgroups = 0
       @totals.skipped = 0
       @totals.stripped = 0
+      @totals.replaced = 0
       @totals.copied = 0
 
       LOG.info "-----------------------------------------------------------------------"
@@ -335,9 +348,11 @@ module PatentSafe
     end
 
     def load_rules
-      COPY.each{|p| @rules[p] = :copy}
-      SKIP.each{|p| @rules[p] = :skip}
-      STRIP.each{|p| @rules[p] = :strip}
+      # array keeps them ordered
+      COPY.each{|p| @rules << [p,:copy]}
+      REPLACE.each{|p| @rules << [p, :replace]}
+      SKIP.each{|p| @rules << [p, :skip]}
+      STRIP.each{|p| @rules << [p, :strip]}
     end
 
     # Applies substitutions to the content
@@ -407,6 +422,11 @@ module PatentSafe
                 @totals.skipped += 1
                 LOG.info " - skipped #{basename}"
 
+              when :replace
+                target.open("w+"){|t| t.puts "~stripped by psstrip~"}
+                @totals.replaced +=1
+                LOG.info " - replaced #{basename}"
+
               else # :copy
                 FileUtils.cp(src.to_s, target.to_s)
                 @totals.copied += 1
@@ -423,13 +443,14 @@ module PatentSafe
       end # Find
 
       copy_users_to dest
-      total = @totals.stripped + @totals.skipped + @totals.copied + @totals.users
+      total = @totals.stripped + @totals.replaced + @totals.skipped + @totals.copied + @totals.users
       pad = total.to_s.length + 2
 
       LOG.info ""
       LOG.warn " PatentSafe repository copied to: #{File.expand_path(dest.to_s)}"
       LOG.warn ""
       LOG.warn "  * Files stripped: #{@totals.stripped.to_s.rjust(pad)}"
+      LOG.warn "  * Files replaced: #{@totals.replaced.to_s.rjust(pad)}"
       LOG.warn "  * Files skipped:  #{@totals.skipped.to_s.rjust(pad)}"
       LOG.warn "  * Files copied:   #{@totals.copied.to_s.rjust(pad)}"
       LOG.warn "  * Users coped:    #{@totals.users.to_s.rjust(pad)}"

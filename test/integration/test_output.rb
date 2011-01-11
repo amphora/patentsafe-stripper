@@ -23,6 +23,7 @@ class TestOutput < Test::Unit::TestCase
     assert_match /copying patentsafe/i, out
     assert_match /skipped/i, out
     assert_match /stripped/i, out
+    assert_match /replaced/i, out
     assert_match /copied/i, out
     assert_match /patentsafe repository copied to/i, out
     assert_match /ended at/i, out
