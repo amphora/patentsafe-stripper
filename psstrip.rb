@@ -250,7 +250,7 @@ module PatentSafe
     SUBSTITUTIONS = {
       "<summary>.*<\/summary>" => "<summary>~summary stripped by psstrip~</summary>",
       "<text>.*<\/text>" => "<text>~text stripped by psstrip~</text>",
-      "<metadataValues>.*<metadataValues\/>" => "<metadataValues>~metadata stripped by psstrip~</metadataValues>",
+      "<metadataValues>.*<\/metadataValues>" => "<metadataValues>~metadata stripped by psstrip~</metadataValues>",
       "<aliases>.*<\/aliases>" => "<aliases/>",
       "<email>.*<\/email>" => "<email>stripped.email@example.com</email>",
       "<password>.*<\/password>" => "<password>fa4afd98097d7f7c7ced012edb56d2c6c6987e31f2f12caa3a422e8b</password>"

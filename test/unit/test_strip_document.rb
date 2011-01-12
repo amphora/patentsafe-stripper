@@ -32,4 +32,11 @@ class TestStripDocument < Test::Unit::TestCase
     assert_match /#{@repo.user_map['watson']}/i, @stripped
   end
 
+  def test_metadata_is_repaced
+    file = Pathname.new("test/fixtures/metadata-test.xml").read
+    stripped = @repo.strip_content(file)
+    assert_no_match /enerfaxweb@egroups.com/i, stripped
+    assert_no_match /enerfax1@bellsouth.net/i, stripped
+    assert_match /~metadata stripped by psstrip~/i, stripped
+  end
 end

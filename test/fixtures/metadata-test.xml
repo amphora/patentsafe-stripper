@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<document version="3.3" docId="AMPH9802976788" type="experiment" tenancy="0">
+  <user userId="user-04052">user-04052</user>
+  <workgroup workgroupId="2">test-users</workgroup>
+  <state>active</state>
+  <created>2006-10-30 00:22:54</created>
+  <content fileId="AMPH9802976788F002" format="pdf">
+    <name>processed.pdf</name>
+    <stored>2008-07-16 13:25:16</stored>
+    <length>1796</length>
+  </content>
+  <pages>1</pages>
+  <hash format="sha1">a02203aba1dbf8323edf7e0e4a222048ede296c6</hash>
+  <hash format="sha512">597d16787d4c457b2e8d33ad2c6a6dbfc39de4d4376e7c6b98e98a0b4d8e073eb59c06dcf13b1b6e02bc963677043e889a696f2645a3dd3d3b8efb3b221bfc1c</hash>
+  <summary>Enerfax Daily's free web version of gas &amp; power prices and info</summary>
+  <metadataValues>
+    <metadata metadataId="AMPH9802976788M0001">
+      <modified modifiedOn="2008-07-16 13:25:16"/>
+      <value tag="email-to">enerfaxweb@egroups.com</value>
+    </metadata>
+    <metadata metadataId="AMPH9802976788M0003">
+      <modified modifiedOn="2008-07-16 13:25:16"/>
+      <value tag="email-from">enerfax1@bellsouth.net</value>
+    </metadata>
+  </metadataValues>
+  <classification state="never-set" on="2010-04-20 12:51:16"/>
+  <signatures format="sha512">
+    <signature sigId="AMPH9802976788S001" format="sha512">
+      <role>Author</role>
+      <signer userId="user-04052">user-04052</signer>
+      <requester userId="user-04052">user-04052</requester>
+      <requested>2008-07-16 13:25:17</requested>
+      <state>Pending</state>
+    </signature>
+  </signatures>
+</document>
