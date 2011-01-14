@@ -199,9 +199,22 @@ module PatentSafe
 
   class Repository
     attr_accessor :path
-    attr_reader :totals, :users, :user_map, :workgroups, :workgroup_map
+    attr_reader :rules, :totals, :users, :user_map, :workgroups, :workgroup_map
 
     # File patterns used to match against repo file paths
+
+    # SKIP_DIRS: directories we skip altogether
+    SKIPDIRS = [
+      "configlets",
+      "index",
+      "printers",
+      "printjobs",
+      "queues",
+      "scanning",
+      "scripts",
+      "spool",
+      "users"
+    ]
 
     # COPY: files that are copied with no changes
     COPY = [
@@ -228,37 +241,29 @@ module PatentSafe
       "content\.txt"
     ]
 
-    # STRIP: files that are cleaned before copy
+    # STRIP: files that are cleaned before copy with doc specific substitutions
+    # ** All 'STRIP' files are checked for user/group data
     STRIP = [
-      "docinfo\.xml$",
-      "signature\-\d\d\d\.xml$",
-      "events\.txt$", # 5.0 merge of events.log + log.xml
-      "log\.xml$", # 4.8 read log
-      "workgroups\.xml$",
-      "events\.log$" # 4.8 event log
+      ["docinfo\.xml$", {
+        "<summary>.*<\/summary>"                => "<summary>~summary stripped by psstrip~</summary>",
+        "<text>.*<\/text>"                      => "<text>~text stripped by psstrip~</text>",
+        "<metadataValues>.*<\/metadataValues>"  => "<metadataValues>~metadata stripped by psstrip~</metadataValues>"
+      }],
+
+      ["signature\-\d\d\d\.xml$", {}],
+
+      ["events\.(txt|log)$", {}], # 5.0 merge of events.log + log.xml # 4.8 is events.log
+
+      ["log\.xml$", {}], # 4.8 read log
+
+      ["workgroups\.xml$", {}]
     ]
 
-    # SKIP_DIRS: directories we skip altogether
-    SKIPDIRS = [
-      "configlets",
-      "index",
-      "printers",
-      "printjobs",
-      "queues",
-      "scanning",
-      "scripts",
-      "spool",
-      "users"
-    ]
-
-    # SUBSTITUTIONS: substitutions made of document content
-    SUBSTITUTIONS = {
-      "<summary>.*<\/summary>" => "<summary>~summary stripped by psstrip~</summary>",
-      "<text>.*<\/text>" => "<text>~text stripped by psstrip~</text>",
-      "<metadataValues>.*<\/metadataValues>" => "<metadataValues>~metadata stripped by psstrip~</metadataValues>",
-      "<aliases>.*<\/aliases>" => "<aliases/>",
-      "<email>.*<\/email>" => "<email>stripped.email@example.com</email>",
-      "<password>.*<\/password>" => "<password>fa4afd98097d7f7c7ced012edb56d2c6c6987e31f2f12caa3a422e8b</password>"
+    # USER_SUBSTITUTIONS: substitutions for user files
+    USER_SUBSTITUTIONS = {
+      "<aliases>.*<\/aliases>"    => "<aliases/>",
+      "<email>.*<\/email>"        => "<email>stripped.email@example.com</email>",
+      "<password>.*<\/password>"  => "<password>fa4afd98097d7f7c7ced012edb56d2c6c6987e31f2f12caa3a422e8b</password>"
     }
 
     def initialize(options={})
@@ -283,17 +288,22 @@ module PatentSafe
       LOG.warn " Started at: #{Time.now}"
       LOG.info ""
 
-      load_rules
       load_users
       load_workgroups
-
-      @subs.merge!(SUBSTITUTIONS)
-      @subs.merge!(@user_map)
-      @subs.merge!(@workgroup_map)
+      load_rules
     end
 
     def data_path
       @path.join('data').expand_path
+    end
+
+    def load_rules
+      # array keeps them ordered
+      COPY.each{ |pattern| @rules << [pattern,:copy, nil] }
+      REPLACE.each{ |pattern| @rules << [pattern, :replace, nil] }
+      SKIP.each{ |pattern| @rules << [pattern, :skip, nil] }
+      # add user and group subs to file specific subs
+      STRIP.each{ |pattern, subs| @rules << [pattern, :strip, subs.merge(@user_map).merge(@workgroup_map)] }
     end
 
     # Loads users from the xml in the repo
@@ -352,17 +362,9 @@ module PatentSafe
       LOG.info "** #{@workgroups.length} workgroups loaded"
     end
 
-    def load_rules
-      # array keeps them ordered
-      COPY.each{|p| @rules << [p,:copy]}
-      REPLACE.each{|p| @rules << [p, :replace]}
-      SKIP.each{|p| @rules << [p, :skip]}
-      STRIP.each{|p| @rules << [p, :strip]}
-    end
-
     # Applies substitutions to the content
-    def strip_content(file)
-      @subs.each{|pattern, sub| file.gsub!(/#{pattern}/m, sub)}
+    def strip_content(subs, file)
+      subs.each{|pattern, sub| file.gsub!(/#{pattern}/m, sub)}
       file
     end
 
@@ -378,14 +380,14 @@ module PatentSafe
           inst_dir = dest.join('data', 'users', 'in', 'st', 'installer')
           inst_dir.mkpath
           installer = @users["installer"]
-          inst_dir.join("installer.xml").open("w+"){|t| t.puts strip_content(installer.xml.to_s)}
+          inst_dir.join("installer.xml").open("w+"){|t| t.puts strip_content(USER_SUBSTITUTIONS, installer.xml.to_s)}
         else
           # create user dir
           user_dir = users_dir.join(user.anon_id)
           user_dir.mkpath
 
           # write the stripped user file
-          user_dir.join("#{user.anon_id}.xml").open("w+"){|t| t.puts strip_content(user.xml.to_s)}
+          user_dir.join("#{user.anon_id}.xml").open("w+"){|t| t.puts strip_content(USER_SUBSTITUTIONS, user.xml.to_s)}
           LOG.info " - stripped #{user.user_id}.xml"
         end
       end
@@ -418,12 +420,12 @@ module PatentSafe
             target.mkpath unless target.exist?
           end
         else
-          @rules.each do |pattern, rule|
+          @rules.each do |pattern, rule, subs|
             if /#{pattern}/i =~ basename
 
               case rule
               when :strip
-                target.open("w+"){|t| t.puts strip_content(src.read)}
+                target.open("w+"){|t| t.puts strip_content(subs, src.read)}
                 @totals.stripped += 1
                 LOG.info " - stripped #{basename}"
 

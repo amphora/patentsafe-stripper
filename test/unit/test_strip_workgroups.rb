@@ -5,7 +5,7 @@ class TestStripWorkgroups < Test::Unit::TestCase
   def setup
     @repo = PatentSafe::Repository.new(:path => @@psdir)
     @file = read_file("data/config/workgroups.xml")
-    @stripped = @repo.strip_content(@file)
+    @stripped = @repo.strip_content(@repo.workgroup_map, @file)
   end
 
 

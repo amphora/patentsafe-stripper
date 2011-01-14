@@ -4,8 +4,9 @@ class TestStripDocument < Test::Unit::TestCase
 
   def setup
     @repo = PatentSafe::Repository.new(:path => @@psdir)
-    @file = read_file("data/2009/01/02/TEST0100000002/docinfo.xml")
-    @stripped = @repo.strip_content(@file)
+    file = read_file("/data/2009/01/02/TEST0100000002/docinfo.xml")
+    # extract rule and subs for doc
+    @stripped = @repo.strip_content(@repo.rules.find{|r,subs|r == "docinfo\.xml$"}[2], file)
   end
 
 
@@ -34,7 +35,7 @@ class TestStripDocument < Test::Unit::TestCase
 
   def test_metadata_is_repaced
     file = Pathname.new("test/fixtures/metadata-test.xml").read
-    stripped = @repo.strip_content(file)
+    stripped = @repo.strip_content(@repo.rules.find{|r,subs|r == "docinfo\.xml$"}[2], file)
     assert_no_match /enerfaxweb@egroups.com/i, stripped
     assert_no_match /enerfax1@bellsouth.net/i, stripped
     assert_match /~metadata stripped by psstrip~/i, stripped
