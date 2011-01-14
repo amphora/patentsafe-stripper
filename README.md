@@ -59,6 +59,7 @@ Other examples:
     ruby psstrip.rb -q /path/to/repository /path/to/copy
     ruby psstrip.rb --verbose /path/to/repository /path/to/copy
     ruby psstrip.rb -V /path/to/repository /path/to/copy
+    ruby psstrip.rb -f -t 1 /path/to/repository /path/to/copy
 
 ### Command Line Usage ###
 
@@ -69,11 +70,19 @@ For help use: `ruby pscheck.rb -h`
 
 ### Options: ###
     -f, --force     Force copy to non-empty directory
+    -t, --throttle  Throttle the speed of the stripper (0-10) [Default 0]
     -h, --help      Displays help message
     -v, --version   Display the version, then exit
     -q, --quiet     Output as little as possible, overrides verbose
     -V, --verbose   Verbose output
 
+
+### Throttle ###
+
+The `-t` or `--throttle` option may be used to put a small delay before
+processing each file. The higher this setting the greater the delay. If system
+resources are of serious concern you should use system tools to start this
+script with modified process priority so the kernel can schedule appropriately.
 
 Requirements
 ------------
@@ -84,7 +93,7 @@ Ruby 1.8 or later
 License
 -------
 
-Copyright (c) 2010 Amphora Research Systems Ltd.
+Copyright (c) 2010,2011 Amphora Research Systems Ltd.
 
 The script is made available under the GPL v3. If you improve this script for
 your own purposes, we'd be delighted if you felt able to share your changes.

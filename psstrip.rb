@@ -18,6 +18,7 @@
 #     ruby psstrip.rb -q /path/to/repository /path/to/copy
 #     ruby psstrip.rb --verbose /path/to/repository /path/to/copy
 #     ruby psstrip.rb -V /path/to/repository /path/to/copy
+#     ruby psstrip.rb -f -t 1 /path/to/repository /path/to/copy
 #
 # == Usage
 #   psstrip.rb [options] "/path/to/repository" "/path/to/copy"
@@ -26,13 +27,14 @@
 #
 # == Options
 #   -f, --force         Force copy to non-empty directory
+#   -t, --throttle      Throttle the speed of the stripper (0-10) [Default 0]
 #   -h, --help          Displays help message
 #   -v, --version       Display the version, then exit
 #   -q, --quiet         Output as little as possible, overrides verbose
 #   -V, --verbose       Verbose output
 #
 # == Copyright
-#   Copyright (c) 2010 Amphora Research Systems Ltd.
+#   Copyright (c) 2010,2011 Amphora Research Systems Ltd.
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -89,6 +91,8 @@ class Script
     @arguments = arguments
     @stdin = stdin
     @options = OpenStruct.new
+    @options.force = false
+    @options.throttle = nil
     @options.verbose = false
     @options.quiet = false
   end
@@ -119,6 +123,7 @@ class Script
   def parsed_options?
     opts = OptionParser.new
     opts.on('-f', '--force')    { @options.force = true }
+    opts.on('-t', '--throttle [AMOUNT]', Integer) { |throttle| @options.throttle = throttle }
     opts.on('-v', '--version')  { output_version ; exit 0 }
     opts.on('-h', '--help')     { output_help }
     opts.on('-V', '--verbose')  { @options.verbose = true }
@@ -157,7 +162,7 @@ class Script
 
   def process_command
     repo = PatentSafe::Repository.new(:path => @source)
-    repo.copy_to(@target)
+    repo.copy_to(@target, @options.throttle)
   end
 
   def version_text
@@ -275,7 +280,7 @@ module PatentSafe
       LOG.info "-----------------------------------------------------------------------"
       LOG.info " PatentSafe Stripper "
       LOG.info "-----------------------------------------------------------------------"
-      LOG.info " Started at: #{Time.now}"
+      LOG.warn " Started at: #{Time.now}"
       LOG.info ""
 
       load_rules
@@ -387,16 +392,20 @@ module PatentSafe
 
     end
 
-    def copy_to(dest)
+    def copy_to(dest, throttle = nil)
       # ensure we have Pathname objects
       root = Pathname.new(@path.to_s)
       dest = Pathname.new(dest.to_s)
 
       LOG.info ""
       LOG.info "** copying patentsafe repository from #{root.to_s}"
+      LOG.info "  (Throttled at #{throttle})" unless throttle == 0
 
       # Descend through the PatentSafe repository
       Find.find(root.to_s) do |path|
+
+        sleep(throttle * 0.001) if throttle
+
         src = Pathname.new(path) # pathname to slice and dice
         rel = src.relative_path_from(root) # just the part below the top dir
         target = Pathname.new(File.join(dest.to_s, rel))
@@ -457,7 +466,7 @@ module PatentSafe
       LOG.warn ""
       LOG.warn " Total processed:   #{total.to_s.rjust(pad)}"
       LOG.info ""
-      LOG.info " Ended at: #{Time.now}"
+      LOG.warn " Ended at: #{Time.now}"
       LOG.info "-----------------------------------------------------------------------"
 
     end # def copy_to
