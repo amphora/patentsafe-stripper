@@ -244,34 +244,34 @@ module PatentSafe
     # STRIP: files that are cleaned before copy with doc specific substitutions
     # ** All 'STRIP' files are checked for user/group data
     STRIP = [
-      ["docinfo\.xml$", {
-        "<summary>.*<\/summary>"                => "<summary>~summary stripped by psstrip~</summary>",
-        "<text>.*<\/text>"                      => "<text>~text stripped by psstrip~</text>",
-        "<metadataValues>.*<\/metadataValues>"  => "<metadataValues>~metadata stripped by psstrip~</metadataValues>"
-      }],
+      ["docinfo\.xml$",[
+          ["<summary>.*<\/summary>"              , "<summary>~summary stripped by psstrip~</summary>"],
+          ["<text>.*<\/text>"                    , "<text>~text stripped by psstrip~</text>"],
+          ["<metadataValues>.*<\/metadataValues>", "<metadataValues>~metadata stripped by psstrip~</metadataValues>"]]
+      ],
 
-      ["signature\-\d\d\d\.xml$", {}],
+      ["signature\-\d\d\d\.xml$", []],
 
-      ["events\.(txt|log)$", {}], # 5.0 merge of events.log + log.xml # 4.8 is events.log
+      ["events\.(txt|log)$", []], # 5.0 merge of events.log + log.xml # 4.8 is events.log
 
-      ["log\.xml$", {}], # 4.8 read log
+      ["log\.xml$", []], # 4.8 read log
 
-      ["workgroups\.xml$", {}]
+      ["workgroups\.xml$", []]
     ]
 
     # USER_SUBSTITUTIONS: substitutions for user files
-    USER_SUBSTITUTIONS = {
-      "<aliases>.*<\/aliases>"    => "<aliases/>",
-      "<email>.*<\/email>"        => "<email>stripped.email@example.com</email>",
-      "<password>.*<\/password>"  => "<password>fa4afd98097d7f7c7ced012edb56d2c6c6987e31f2f12caa3a422e8b</password>"
-    }
+    USER_SUBSTITUTIONS = [
+      ["<aliases>.*<\/aliases>"  , "<aliases/>"],
+      ["<email>.*<\/email>"      , "<email>stripped.email@example.com</email>"],
+      ["<password>.*<\/password>", "<password>fa4afd98097d7f7c7ced012edb56d2c6c6987e31f2f12caa3a422e8b</password>"]
+    ]
 
     def initialize(options={})
       @path = Pathname.new(options[:path].to_s) if options[:path]
       @users = Hash.new
-      @user_map = Hash.new
+      @user_map = Array.new
       @workgroups = Hash.new
-      @workgroup_map = Hash.new
+      @workgroup_map = Array.new
       @rules = Array.new
       @subs = Hash.new
       @totals = OpenStruct.new
@@ -303,7 +303,7 @@ module PatentSafe
       REPLACE.each{ |pattern| @rules << [pattern, :replace, nil] }
       SKIP.each{ |pattern| @rules << [pattern, :skip, nil] }
       # add user and group subs to file specific subs
-      STRIP.each{ |pattern, subs| @rules << [pattern, :strip, subs.merge(@user_map).merge(@workgroup_map)] }
+      STRIP.each{ |pattern, subs| @rules << [pattern, :strip, [].concat(@user_map).concat(@workgroup_map).concat(subs)] }
     end
 
     # Loads users from the xml in the repo
@@ -311,6 +311,9 @@ module PatentSafe
       users_path = @path.join('data', 'users').expand_path
       LOG.info ""
       LOG.info "** loading users from #{users_path}"
+
+      names = []
+      ids = []
 
       Dir["#{users_path}/**/*.xml"].each_with_index do |path,i|
         user = OpenStruct.new
@@ -322,8 +325,8 @@ module PatentSafe
 
         unless user.user_id == "installer"
           # user id and user name index
-          @user_map[user.user_id] = user.anon_id
-          @user_map[user.name] = user.anon_name
+          ids << [user.user_id, user.anon_id]
+          names << [user.name, user.anon_name]
         end
 
         # store the user
@@ -332,6 +335,7 @@ module PatentSafe
         LOG.info " - loaded #{user.name} [#{user.user_id}]"
       end
 
+      @user_map.concat(names).concat(ids) # names first!
       LOG.info "** #{@users.length} users loaded"
     end
 
@@ -351,7 +355,7 @@ module PatentSafe
         workgroup.anon_name = "Group #{workgroup.wg_id}"
 
         # group name index
-        @workgroup_map[workgroup.name] = workgroup.anon_name unless workgroup.name == "Admin"
+        @workgroup_map << [workgroup.name, workgroup.anon_name] unless workgroup.name == "Admin"
 
         # store the workgroup
         @workgroups[workgroup.wg_id] = workgroup
