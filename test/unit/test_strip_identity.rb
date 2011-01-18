@@ -6,7 +6,7 @@ class TestStripIdentity < Test::Unit::TestCase
     @repo = PatentSafe::Repository.new(:path => @@psdir)
     file = read_file("/data/2009/01/02/TEST0100000001/docinfo.xml")
     # extract rule and subs for ident
-    @stripped = @repo.strip_content(@repo.rules.find{|r,subs|r == "docinfo\.xml$"}[2], file)
+    @stripped = @repo.strip_content(@repo.rules.find{|k,r,t,s| k == "docinfo\.xml$"}[3], file)
   end
 
 

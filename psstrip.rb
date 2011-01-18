@@ -299,11 +299,21 @@ module PatentSafe
 
     def load_rules
       # array keeps them ordered
-      COPY.each{ |pattern| @rules << [pattern,:copy, nil] }
-      REPLACE.each{ |pattern| @rules << [pattern, :replace, nil] }
-      SKIP.each{ |pattern| @rules << [pattern, :skip, nil] }
+      #   nested array is string_pattern, regexp, rule, substitutions
+      COPY.each{    |pattern| @rules << [pattern, /#{pattern}/i, :copy,    nil] }
+      REPLACE.each{ |pattern| @rules << [pattern, /#{pattern}/i, :replace, nil] }
+      SKIP.each{    |pattern| @rules << [pattern, /#{pattern}/i, :skip,    nil] }
       # add user and group subs to file specific subs
-      STRIP.each{ |pattern, subs| @rules << [pattern, :strip, [].concat(@user_map).concat(@workgroup_map).concat(subs)] }
+      STRIP.each do |pattern, subs|
+        @rules << [
+          pattern,
+          /#{pattern}/i,
+          :strip,
+          [].concat(@user_map).concat(@workgroup_map).concat(subs).map do |subpat, sub|
+            [/#{subpat}/m, sub] # store the regexp for the sub-substitions
+          end
+        ]
+      end
     end
 
     # Loads users from the xml in the repo
@@ -368,7 +378,7 @@ module PatentSafe
 
     # Applies substitutions to the content
     def strip_content(subs, file)
-      subs.each{|pattern, sub| file.gsub!(/#{pattern}/m, sub)}
+      subs.each{|pattern, sub| file.gsub!(pattern, sub)}
       file
     end
 
@@ -424,8 +434,8 @@ module PatentSafe
             target.mkpath unless target.exist?
           end
         else
-          @rules.each do |pattern, rule, subs|
-            if /#{pattern}/i =~ basename
+          rules.each do |key, pattern, rule, subs|
+            if pattern =~ basename
 
               case rule
               when :strip

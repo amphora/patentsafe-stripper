@@ -6,7 +6,7 @@ class TestStripEvents < Test::Unit::TestCase
     @repo = PatentSafe::Repository.new(:path => @@psdir)
     file = read_file("/data/2009/01/02/events.txt")
     # extract rule and subs for events
-    @stripped = @repo.strip_content(@repo.rules.find{|r,subs|r == "events\.(txt|log)$"}[2], file)
+    @stripped = @repo.strip_content(@repo.rules.find{|k,r,t,s|k == "events\.(txt|log)$"}[3], file)
   end
 
 

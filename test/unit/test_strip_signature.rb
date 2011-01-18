@@ -6,7 +6,7 @@ class TestStripSignature < Test::Unit::TestCase
     @repo = PatentSafe::Repository.new(:path => @@psdir)
     file = read_file("/data/2009/01/02/TEST0100000002/signature-001.xml")
     # extract rule and subs for sig
-    @stripped = @repo.strip_content(@repo.rules.find{|r,subs|r == "signature\-\d\d\d\.xml$"}[2], file)
+    @stripped = @repo.strip_content(@repo.rules.find{|k,r,t,s|k == "signature\-\d\d\d\.xml$"}[3], file)
   end
 
 

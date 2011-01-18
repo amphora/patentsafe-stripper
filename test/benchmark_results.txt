@@ -1,0 +1,82 @@
+Before compilation
+------------------
+
+ > ruby test/benchmark_regex.rb 
+Loaded suite test/benchmark_regex
+Started
+
+Full repo copy
+  1.159000   0.000000   1.159000 (  1.159000)
+.
+Run 100000 times with 19 for 1900000 substitutions:
+  5.517000   0.000000   5.517000 (  5.517000)
+
+ - with FileIO
+ 39.460000   0.000000  39.460000 ( 39.460000)
+.
+Finished in 46.934 seconds.
+
+2 tests, 0 assertions, 0 failures, 0 errors
+
+
+Compiled with memoization of rules
+----------------------------------
+
+ > ruby test/benchmark_regex.rb 
+Loaded suite test/benchmark_regex
+Started
+
+Full repo copy
+  1.314000   0.000000   1.314000 (  1.314000)
+.
+Run 100000 times with 19 for 1900000 substitutions:
+  4.242000   0.000000   4.242000 (  4.242000)
+
+ - with FileIO
+ 38.761000   0.000000  38.761000 ( 38.761000)
+.
+Finished in 45.119 seconds.
+
+2 tests, 0 assertions, 0 failures, 0 errors
+
+
+No memoization
+--------------
+
+ > ruby test/benchmark_regex.rb 
+Loaded suite test/benchmark_regex
+Started
+
+Full repo copy
+  1.155000   0.000000   1.155000 (  1.155000)
+.
+Run 100000 times with 19 for 1900000 substitutions:
+  4.255000   0.000000   4.255000 (  4.255000)
+
+ - with FileIO
+ 40.226000   0.000000  40.226000 ( 40.226000)
+.
+Finished in 46.454 seconds.
+
+2 tests, 0 assertions, 0 failures, 0 errors
+
+
+Final version
+-------------
+
+ > ruby test/benchmark_regex.rb 
+Loaded suite test/benchmark_regex
+Started
+
+Full repo copy
+  1.186000   0.000000   1.186000 (  1.186000)
+.
+Run 100000 times with 19 for 1900000 substitutions:
+  4.642000   0.000000   4.642000 (  4.642000)
+
+ - with FileIO
+ 39.834000   0.000000  39.834000 ( 39.834000)
+.
+Finished in 46.47 seconds.
+
+2 tests, 0 assertions, 0 failures, 0 errors
