@@ -222,7 +222,7 @@ module PatentSafe
       "settings\.xml$"
     ]
 
-    # SKIP: files we not copied
+    # SKIP: files that are not copied
     SKIP = [
       ".*\.(png|ps|pdf)$", # images + pdf
       "database\.xml",
