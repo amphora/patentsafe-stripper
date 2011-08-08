@@ -439,7 +439,15 @@ module PatentSafe
 
               case rule
               when :strip
-                target.open("w+"){|t| t.puts strip_content(subs, src.read)}
+                target.open("w+") do |t|
+                  # process potentially long log files line by line
+                  if %w[events.log events.txt].include?(basename)
+                    LOG.info " -- processing #{basename}"
+                    src.open("r"){ |s| s.each{ |l| t.puts strip_content(subs, l) } }
+                  else
+                    t.puts strip_content(subs, src.read)
+                  end
+                end
                 @totals.stripped += 1
                 LOG.info " - stripped #{basename}"
 
