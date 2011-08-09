@@ -199,7 +199,7 @@ module PatentSafe
 
   class Repository
     attr_accessor :path
-    attr_reader :rules, :totals, :users, :user_map, :workgroups, :workgroup_map
+    attr_reader :rules, :user_subs, :totals, :users, :user_map, :workgroups, :workgroup_map
 
     # File patterns used to match against repo file paths
 
@@ -273,7 +273,7 @@ module PatentSafe
       @workgroups = Hash.new
       @workgroup_map = Array.new
       @rules = Array.new
-      @subs = Hash.new
+      @user_subs = Array.new
       @totals = OpenStruct.new
       @totals.users = 0
       @totals.workgroups = 0
@@ -313,6 +313,10 @@ module PatentSafe
             [/#{subpat}/m, sub] # store the regexp for the sub-substitions
           end
         ]
+      end
+      # user rules
+      [].concat(@user_map).concat(@workgroup_map).concat(USER_SUBSTITUTIONS).each do |pattern, sub|
+        @user_subs << [/#{pattern}/im, sub]
       end
     end
 
@@ -394,14 +398,14 @@ module PatentSafe
           inst_dir = dest.join('data', 'users', 'in', 'st', 'installer')
           inst_dir.mkpath
           installer = @users["installer"]
-          inst_dir.join("installer.xml").open("w+"){|t| t.puts strip_content(USER_SUBSTITUTIONS, installer.xml.to_s)}
+          inst_dir.join("installer.xml").open("w+"){|t| t.puts strip_content(@user_subs, installer.xml.to_s)}
         else
           # create user dir
           user_dir = users_dir.join(user.anon_id)
           user_dir.mkpath
 
           # write the stripped user file
-          user_dir.join("#{user.anon_id}.xml").open("w+"){|t| t.puts strip_content(USER_SUBSTITUTIONS, user.xml.to_s)}
+          user_dir.join("#{user.anon_id}.xml").open("w+"){|t| t.puts strip_content(@user_subs, user.xml.to_s)}
           LOG.info " - stripped #{user.user_id}.xml"
         end
       end
