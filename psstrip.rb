@@ -490,7 +490,7 @@ module PatentSafe
       LOG.warn "  * Files replaced: #{@totals.replaced.to_s.rjust(pad)}"
       LOG.warn "  * Files skipped:  #{@totals.skipped.to_s.rjust(pad)}"
       LOG.warn "  * Files copied:   #{@totals.copied.to_s.rjust(pad)}"
-      LOG.warn "  * Users coped:    #{@totals.users.to_s.rjust(pad)}"
+      LOG.warn "  * Users copied:   #{@totals.users.to_s.rjust(pad)}"
       LOG.warn ""
       LOG.warn " Total processed:   #{total.to_s.rjust(pad)}"
       LOG.info ""
