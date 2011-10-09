@@ -218,8 +218,10 @@ module PatentSafe
 
     # COPY: files that are copied with no changes
     COPY = [
+      "classifications\.xml$",
       "id-values\.xml$",
-      "settings\.xml$"
+      "settings\.xml$",
+      "tenants\.xml$"
     ]
 
     # SKIP: files that are not copied
