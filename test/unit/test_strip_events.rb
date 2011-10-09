@@ -12,7 +12,7 @@ class TestStripEvents < Test::Unit::TestCase
 
   def test_holmes_user_id_is_replaced
     assert_no_match /holmes/i, @stripped
-    assert_match /#{@repo.user_map.find{|k,v| k == 'holmes' }[1]}/i, @stripped
+    assert_match /#{@repo.user_id_mapping('holmes')}/i, @stripped
   end
 
   def test_installer_user_id_is_not_replaced

@@ -17,7 +17,7 @@ class TestUsers < Test::Unit::TestCase
     repo = PatentSafe::Repository.new(:path => @@psdir)
     repo.users.each do |id, name|
       unless id == "installer"
-        anon_id = repo.user_map.find{|k,v| k == id }[1]
+        anon_id = repo.user_id_mapping(id)
         assert @userdir.join(anon_id, "#{anon_id}.xml").exist?
       end
     end

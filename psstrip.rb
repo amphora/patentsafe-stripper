@@ -199,7 +199,7 @@ module PatentSafe
 
   class Repository
     attr_accessor :path
-    attr_reader :rules, :user_subs, :totals, :users, :user_map, :workgroups, :workgroup_map
+    attr_reader :rules, :user_subs, :totals, :users, :user_name_map, :user_id_map, :workgroups, :workgroup_map
 
     # File patterns used to match against repo file paths
 
@@ -269,7 +269,8 @@ module PatentSafe
     def initialize(options={})
       @path = Pathname.new(options[:path].to_s) if options[:path]
       @users = Hash.new
-      @user_map = Array.new
+      @user_name_map = Array.new
+      @user_id_map = Array.new
       @workgroups = Hash.new
       @workgroup_map = Array.new
       @rules = Array.new
@@ -297,27 +298,41 @@ module PatentSafe
       @path.join('data').expand_path
     end
 
+    def user_id_mapping(userid)
+      user_id_map.find{|k,v| k == userid }[1]
+    end
+
+    def user_name_mapping(name)
+      user_name_map.find{|k,v| k == name}[1]
+    end
+
     def load_rules
+      # prep user name and user id rules
+      user_names = @user_name_map.map{ |name, namesub| [/[>](#{name})[<]/im, namesub] }
+      user_ids = @user_id_map.map{ |id, idsub| [/[~'"](#{id})["~']/im, idsub] }
+      workgroups = @workgroup_map.map{ |group, groupsub| [/(#{group})/im, groupsub] }
+
       # array keeps them ordered
       #   nested array is string_pattern, regexp, rule, substitutions
       COPY.each{    |pattern| @rules << [pattern, /#{pattern}/i, :copy,    nil] }
       REPLACE.each{ |pattern| @rules << [pattern, /#{pattern}/i, :replace, nil] }
       SKIP.each{    |pattern| @rules << [pattern, /#{pattern}/i, :skip,    nil] }
+
       # add user and group subs to file specific subs
       STRIP.each do |pattern, subs|
+        subs = subs.map{ |regex, sub| [/(#{regex})/im, sub] }
+
         @rules << [
           pattern,
           /#{pattern}/i,
           :strip,
-          [].concat(@user_map).concat(@workgroup_map).concat(subs).map do |subpat, sub|
-            [/#{subpat}/m, sub] # store the regexp for the sub-substitions
-          end
+          [].concat(user_names).concat(user_ids).concat(workgroups).concat(subs)
         ]
       end
-      # user rules
-      [].concat(@user_map).concat(@workgroup_map).concat(USER_SUBSTITUTIONS).each do |pattern, sub|
-        @user_subs << [/#{pattern}/im, sub]
-      end
+
+      # rules for use files
+      @user_subs.concat(USER_SUBSTITUTIONS.map{ |regex, sub| [/(#{regex})/im, sub] })
+      @user_subs.concat(user_names).concat(user_ids).concat(workgroups)
     end
 
     # Loads users from the xml in the repo
@@ -349,7 +364,8 @@ module PatentSafe
         LOG.info " - loaded #{user.name} [#{user.user_id}]"
       end
 
-      @user_map.concat(names).concat(ids) # names first!
+      @user_name_map.concat(names)
+      @user_id_map.concat(ids)
       LOG.info "** #{@users.length} users loaded"
     end
 
@@ -382,7 +398,7 @@ module PatentSafe
 
     # Applies substitutions to the content
     def strip_content(subs, file)
-      subs.each{|pattern, sub| file.gsub!(pattern, sub)}
+      subs.each{ |pattern, sub| file.gsub!(pattern){ |match| match.gsub!($1, sub) } }
       file
     end
 
